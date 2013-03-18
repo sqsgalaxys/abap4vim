@@ -86,7 +86,13 @@ endfunction
 "---------------------------------------------
 function! Abapget()
     chdir ~
-    let g:arg = input('ABAP program name: ')
+    if exists("g:pre")
+        let g:arg = g:pre_prog
+        g:pre = 0
+    else
+        let g:arg = input('ABAP program name: ')
+    endif
+
     let g:conn = Abapconn()
 python << EOF
 
@@ -146,6 +152,7 @@ PASSWD =    # Password
                         for word in words:
                             if next:
                                 inc_name = word.strip()
+                                inc_name = inc_name.replace('.', '')
                                 break
                             if word.upper().strip() == 'INCLUDE':
                                 next = True
@@ -175,12 +182,52 @@ EOF
 endfunction
 
 
+function! Abapreload()
+let g:current_program = expand("%:t")
+
+python << EOF
+import vim
+
+program = vim.eval("g:current_program")
+program, extension = program.split('.')
+program = program.strip()
+
+if extension == 'abap':
+    if program[0].lower() not in 'xyz':
+        print 'Standard program'
+    else:
+        vim.command("let g:pre = 1")
+        vim.command("let g:pre_prog = '"+program+"'")
+EOF
+
+if g:pre_prog 
+    if exists("g:pre")
+        Abapget()
+    endif
+endfunction
+
 "-------------------------------------------
 " AbapCommit
 "
 " Upload ABAP Code to SAP Server
 "-------------------------------------------
 function! Abapcommit()
+let g:sc = Abapsyntax()
+let g:cont = "N"
+
+if g:sc ==? "OK"
+    let g:cont = "Y"
+    echom "Syntax OK"
+else
+    echo g:sc
+    let g:cont = input("There are some syntax problems, do you want to continue?(y N) ")
+endif
+
+if g:cont ==? "Y"
+    let g:cont = "Y"
+else
+    return "" 
+endif
 
 let g:current_program = expand("%:t")
 let g:full_path = expand("%:p")
@@ -215,5 +262,42 @@ if program.find('.') > 0:
 EOF
 
 endfunction
+
+function! Abapsyntax()
+let g:current_program = expand("%t")
+let g:full_path = expand("%:p")
+let g:conn = Abapconn()
+let g:result = ''
+python << EOF
+import vim, os, easysap
+
+program = vim.eval("g:current_program")
+full_path = vim.eval("g:full_path")
+
+if program.find('.') > 0:
+    program, extension = program.split('.')
+    if extension == 'abap':
+        if program.strip()[0].lower() not in 'xyz':
+            print 'This seems a standart ABAP Code!:' + program
+        else:
+            sap = easysap.SAPInstance()
+            home = os.environ['HOME']
+            conn = vim.eval("g:conn")
+            sap.set_config(conn)
+
+            code = open(full_path, 'r').read()
+            code = str(code)
+
+            result = sap.syntax_check(program, code)
+
+            if len(result) > 0:
+                if type(result) == type([]):
+                    result = result[0]
+            print result
+            vim.command("let g:result = '"+str(result)+"'")
+
+EOF
+return g:result
+endfunction 
 
 
