@@ -204,6 +204,7 @@ if g:pre_prog
     if exists("g:pre")
         Abapget()
     endif
+endif
 endfunction
 
 "-------------------------------------------
@@ -213,18 +214,18 @@ endfunction
 "-------------------------------------------
 function! Abapcommit()
 let g:sc = Abapsyntax()
-let g:cont = "N"
+let g:cont = "K"
 
 if g:sc ==? "OK"
-    let g:cont = "Y"
+    let g:cont = "J"
     echom "Syntax OK"
 else
     echo g:sc
-    let g:cont = input("There are some syntax problems, do you want to continue?(y N) ")
+    let g:cont = input("There are some syntax problems, do you want to continue?(j=Yes K=No) ")
 endif
 
-if g:cont ==? "Y"
-    let g:cont = "Y"
+if g:cont ==? "J"
+    let g:cont = "J"
 else
     return "" 
 endif
