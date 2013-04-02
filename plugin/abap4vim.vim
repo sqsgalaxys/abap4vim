@@ -13,6 +13,7 @@ endif
 function! Abapdir()
 
 python << EOF
+# -*- coding: UTF-8 -*-
 import os, vim
 
 home = os.environ['HOME']
@@ -38,6 +39,7 @@ endfunction
 function! Abapconn()
 
 python << EOF
+# -*- coding: UTF-8 -*-
 
 import os, vim
 import easysap
@@ -95,6 +97,7 @@ function! Abapget()
 
     let g:conn = Abapconn()
 python << EOF
+# -*- coding: UTF-8 -*-
 
 import os, vim
 
@@ -186,6 +189,7 @@ function! Abapreload()
 let g:current_program = expand("%:t")
 
 python << EOF
+# -*- coding: UTF-8 -*-
 import vim
 
 program = vim.eval("g:current_program")
@@ -234,6 +238,7 @@ let g:current_program = expand("%:t")
 let g:full_path = expand("%:p")
 let g:conn      = Abapconn()
 python << EOF
+# -*- coding: UTF-8 -*-
 import vim, os, easysap
 
 program = vim.eval("g:current_program")
@@ -243,7 +248,8 @@ if program.find('.') > 0:
     program, extension = program.split('.')
     if extension == 'abap':
         if program.strip()[0].lower() not in 'xyz':
-            print 'This seems a standard ABAP Code!:' + program
+            if program.strip()[0].lower() not in 'l' and program.strip()[1].lower not in 'z':
+                print 'This seems a standard ABAP Code!:' + program
         else:
             sap = easysap.SAPInstance()
             home = os.environ['HOME']
@@ -270,6 +276,7 @@ let g:full_path = expand("%:p")
 let g:conn = Abapconn()
 let g:result = ''
 python << EOF
+# -*- coding: UTF-8 -*-
 import vim, os, easysap
 
 program = vim.eval("g:current_program")
