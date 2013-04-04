@@ -247,10 +247,11 @@ full_path = vim.eval("g:full_path")
 if program.find('.') > 0:
     program, extension = program.split('.')
     if extension == 'abap':
-        if program.strip()[0].lower() not in 'xyz':
-            if program.strip()[0].lower() not in 'l' and program.strip()[1].lower not in 'z':
-                print 'This seems a standard ABAP Code!:' + program
+        if program.strip()[0].lower() not in 'xyzl':
+            print 'This seems a standard ABAP Code!:' + program
         else:
+            if program.strip()[1].lower() != 'z':
+                print 'This seems a standard ABAP Code!:' + program
             sap = easysap.SAPInstance()
             home = os.environ['HOME']
             conn = vim.eval("g:conn") 
