@@ -156,6 +156,8 @@ PASSWD =    # Password
                             if next:
                                 inc_name = word.strip()
                                 inc_name = inc_name.replace('.', '')
+                                if inc_name.upper() == 'STRUCTURE':
+                                    inc_name = ''
                                 break
                             if word.upper().strip() == 'INCLUDE':
                                 next = True
