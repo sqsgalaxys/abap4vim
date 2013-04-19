@@ -43,7 +43,7 @@ Installation
 install abap4vim.
 
     cd ~/vimfiles/bundle
-    git clone git@github.com:hugo-dc/abap4vim.git
+    git://github.com/hugo-dc/abap4vim.git
 
 
 

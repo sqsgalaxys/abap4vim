@@ -18,7 +18,7 @@ import os, vim
 
 home = os.environ['HOME']
 
-vim.command("vsplit "+home+"/abaped/")
+vim.command("e "+home+"/abaped/")
 
 EOF
 
@@ -311,4 +311,24 @@ EOF
 return g:result
 endfunction 
 
+" TODO
+function! TransportOrder()
+    let g:object = input('Object: ')
+
+python << EOF
+import vim, easysap 
+
+obj = vim.eval("g:object")
+
+program ="""
+REPORT ZGET_TO.
+
+DATA:
+    begin of wa_to,
+        
+"""
+
+EOF
+
+endfunction
 
