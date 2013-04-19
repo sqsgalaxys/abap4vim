@@ -249,24 +249,19 @@ full_path = vim.eval("g:full_path")
 if program.find('.') > 0:
     program, extension = program.split('.')
     if extension == 'abap':
-        if program.strip()[0].lower() not in 'xyzl':
-            print 'This seems a standard ABAP Code!:' + program
+        sap = easysap.SAPInstance()
+        home = os.environ['HOME']
+        conn = vim.eval("g:conn") 
+        sap.set_config(conn)
+
+        code = open(full_path, 'r').read()
+        code = str(code)
+        ok = sap.upload_abap(program, code)            
+
+        if ok:
+            print 'Code uploaded successfully!'
         else:
-            if program.strip()[1].lower() != 'z':
-                print 'This seems a standard ABAP Code!:' + program
-            sap = easysap.SAPInstance()
-            home = os.environ['HOME']
-            conn = vim.eval("g:conn") 
-            sap.set_config(conn)
-
-            code = open(full_path, 'r').read()
-            code = str(code)
-            ok = sap.upload_abap(program, code)            
-
-            if ok:
-                print 'Code uploaded successfully!'
-            else:
-                print 'ERROR uploading ABAP Source code'
+            print 'ERROR uploading ABAP Source code'
                 
 
 EOF
