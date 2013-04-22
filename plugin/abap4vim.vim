@@ -213,6 +213,41 @@ if g:pre_prog
 endif
 endfunction
 
+
+"-------------------------------------------
+" AbapRun
+" Run current buffer as ABAP program 
+"------------------------------------------
+
+function! Abaprun()
+let g:full_path = expand("%:p")
+
+let g:conn = Abapconn()
+
+python << EOF
+import vim, easysap, os
+
+full_path = vim.eval("g:full_path")
+
+sap = easysap.SAPInstance()
+
+conn = vim.eval("g:conn")
+
+sap.set_config(conn)
+
+code = open(full_path, 'r').read()
+code = str(code)
+
+result = sap.executeABAP(code)
+
+
+for line in result:
+    print line
+
+EOF
+
+endfunction
+
 "-------------------------------------------
 " AbapCommit
 "
@@ -227,7 +262,7 @@ if g:sc ==? "OK"
     echom "Syntax OK"
 else
     echo g:sc
-    let g:cont = input("There are some syntax problems, do you want to continue?(j=Yes K=No) ")
+    let g:cont = input("There are some syntax problems, do you want to continue?(j=Yes k=No) ")
 endif
 
 if g:cont ==? "J"
