@@ -341,24 +341,143 @@ EOF
 return g:result
 endfunction 
 
-" TODO
+
+"-------------------------------------------
+" Get transport order containing an object "
+"------------------------------------------"
 function! TransportOrder()
     let g:object = input('Object: ')
+    let g:conn = Abapconn()
 
 python << EOF
 import vim, easysap 
 
 obj = vim.eval("g:object")
 
-program ="""
-REPORT ZGET_TO.
+if obj != None:
+    obj = obj.upper()
 
-DATA:
-    begin of wa_to,
+    program ="""
+    REPORT ZGET_TO.
+
+    DATA:
+        begin of wa_to,
+            trkorr like e071-trkorr,
+            as4user like e070-as4user,
+            as4text like e07T-as4text,
+        end of wa_to,
+
+        it_to like wa_to occurs 0,
         
-"""
+        v_result type string.
+
+    SELECT a~trkorr 
+           c~as4user
+           b~as4text
+           INTO TABLE it_to
+           FROM e071 as a 
+           INNER JOIN e07T as b 
+           ON ( a~trkorr = b~trkorr )
+           INNER JOIN e070 as c 
+           ON ( c~trkorr = b~trkorr )
+           WHERE a~obj_name = '%s'
+             AND c~trfunction = 'K'.
+
+    LOOP AT it_to 
+        INTO wa_to.
+
+        concatenate 
+            wa_to-trkorr
+            wa_to-as4user
+            wa_to-as4text 
+            INTO v_result SEPARATED BY space.
+
+        WRITE:/  v_result.
+    ENDLOOP.
+
+    """ % obj
+
+    sap = easysap.SAPInstance() 
+    conn = vim.eval("g:conn")
+
+    sap.set_config(conn)
+
+    result = sap.executeABAP(program)
+
+    total = len(result)
+
+    vim.current.buffer.append('-'*80)
+    vim.current.buffer.append('- Transport Orders: ' + str(total))
+    vim.current.buffer.append('='*80)
+
+    for line in result:
+        line = line.split(' ')
+        trkorr = line[0]
+        user   = line[1]
+        descr  = ' '.join(line[2:])
+
+        line = trkorr +'\t' + user + '\t' + descr 
+
+        vim.current.buffer.append(line)
 
 EOF
 
 endfunction
 
+"--------------------------------------------"
+" Objects in transport order 
+"--------------------------------------------!
+function! TransportOrderObjects()
+    let g:torder = input('Transport Order: ')
+    let g:conn   = Abapconn()
+
+python << EOF 
+import vim, easysap
+
+torder = vim.eval("g:torder")
+
+if torder != None:
+    torder = torder.upper()
+    torder = torder.strip()
+
+    program = """
+    REPORT ZTO.
+
+    DATA:
+        BEGIN OF wa_objects,
+            obj_name like e071-obj_name,
+        END OF wa_objects,
+
+        it_objects like wa_objects occurs 0.
+
+
+    SELECT obj_name FROM e071 
+    INTO TABLE it_objects 
+    WHERE TRKORR = '%s'
+      AND OBJECT <> 'RELE'.
+
+    LOOP AT it_objects 
+        INTO wa_objects.
+        WRITE:/ wa_objects-obj_name.
+    ENDLOOP.
+    """ % torder
+
+    sap = easysap.SAPInstance()
+    conn = vim.eval("g:conn")
+
+    sap.set_config(conn)
+
+    result = sap.executeABAP(program)
+
+    total = len(result)
+
+    vim.current.buffer.append('-'*80)
+    vim.current.buffer.append('- Objects in transport order: '+str(total))
+    vim.current.buffer.append('='*80)
+
+    for line in result:
+        vim.current.buffer.append(line)
+
+EOF 
+
+endfunction
