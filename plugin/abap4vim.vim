@@ -4,39 +4,92 @@ if !has('python')
 endif
 
 
-"---------------------------------------------
-" Abapchdir
-"
-" Go to the ABAP path
-" -------------------------------------------
+let g:mainpath = 'ABAP4Vim'
 
-function! Abapdir()
+
+"---------------------------------------------
+" Go to the main path
+" -------------------------------------------
+function! A4V_dir()
 
 python << EOF
 # -*- coding: UTF-8 -*-
 import os, vim
 
+path = vim.eval('g:mainpath')
+
 home = os.environ['HOME']
 
-vim.command("e "+home+"/abaped/")
+vim.command("e "+home+"/"+path+"/")
 
 EOF
 
 endfunction
 
 "---------------------------------------------
-" Abapconf
-" 
 " Configure SAP Server
 "---------------------------------------------
-function! Abapconf()
+function! A4V_conf()
 
-split ~/abaped/server.cfg
+split ~/ABAP4Vim/server.cfg
 
 endfunction
 
 
-function! Abapconn()
+"------------------------------
+" Check initial installation
+"------------------------------
+function! A4V_init()
+    let g:result = ''
+
+python << EOF 
+if 'HOME' in os.environ:
+    home = os.environ['HOME']
+    home = home.replace('\\', '/')
+    path = vim.eval("g:mainpath")
+
+    if not os.path.exists(home+"/"+path):
+        os.mkdir(home+"/"+path)
+        os.mkdir(home+"/"+path+"/programs")
+        os.mkdir(home+"/"+path+"/function_modules")
+        vim.eval('input("Configuring ABAP4Vim, please configure your SAP Connection...")')
+
+        defconf = """
+SERVER =    # IP Address or hostname
+SYSNR  =    # System Number
+MANDT  =    # Client/Mandant
+USER   =    # Default user
+PASSWD =    # Password
+            """
+
+        open(home+"/"+path+"/"+"server.cfg", 'w').write(defconf)
+        vim.command("e! "+home + "/"+path+"/"+"server.cfg")
+    else:
+        vim.command('let g:result = "X"')
+else:
+    print 'HOME path not found!'
+
+EOF 
+    return g:result
+
+endfunction
+
+"------------------------------
+" Generate default directories
+"------------------------------
+
+
+"------------------------------
+" Generate configuration file
+"------------------------------
+function! A4V_gen_cfgfile()
+
+endfunction
+
+"-----------+---------------
+" Get SAP Connection String
+"---------------------------
+function! A4V_conn()
 
 python << EOF
 # -*- coding: UTF-8 -*-
@@ -44,12 +97,22 @@ python << EOF
 import os, vim
 import easysap
 
+path = vim.eval('g:mainpath')
+
 home = '~'
 if 'HOME' in os.environ:
     home = os.environ['HOME']
+    home = home.replace('\\', '/')
 
+cfg = home+"/"+path+"/"+"server.cfg"
 
-fin = open(home+"/abaped/server.cfg", 'r').read()
+conn = ''
+
+if not os.path.exists(cfg):
+    vim.eval("A4V_gen_cfgfile()")
+    
+
+fin = open(cfg, 'r').read()
 VARS = { 'SERVER': '', 
             'SYSNR': '',
             'MANDT': '',
@@ -72,6 +135,8 @@ for line in fin:
         if var in VARS.keys():
             VARS[var] = value
 conn = easysap.getConnString(VARS['SERVER'], VARS['SYSNR'], VARS['MANDT'], VARS['USER'], VARS['PASSWD'])
+         
+
 
 vim.command('let g:conn = "' + conn + '"')
 
@@ -82,20 +147,23 @@ return g:conn
 endfunction
 
 "---------------------------------------------
-" Abapget , asks for the program name 
-"
 " Download ABAP Source code from SAP Server
 "---------------------------------------------
-function! Abapget()
+function! A4V_get_program()
     chdir ~
     if exists("g:pre")
         let g:arg = g:pre_prog
         g:pre = 0
     else
-        let g:arg = input('ABAP program name: ')
+        let g:cfgred = A4V_init()
+        if g:cfgred ==? 'X'
+            let g:arg = input('Program name: ')
+        else 
+            return
+        endif
     endif
 
-    let g:conn = Abapconn()
+    let g:conn = A4V_conn()
 python << EOF
 # -*- coding: UTF-8 -*-
 
@@ -109,74 +177,53 @@ except Exception, e:
 # ABAP programs will be stored in the following path
 try:
     program = vim.eval("g:arg") 
+    configured = vim.eval("A4V_init()")
 
-    if 'HOME' in os.environ:
-        home = os.environ['HOME']
-
-        if not os.path.exists(home+"/abaped"):
-            os.mkdir(home+"/abaped")
-            print 'Created abaped path, please configure your SAP Connection...'
-
-            defconf = """
-SERVER =    # IP Address or hostname
-SYSNR  =    # System Number
-MANDT  =    # Client/Mandant
-USER   =    # Default user
-PASSWD =    # Password
-            """
-
-            open(home+"/abaped/server.cfg", 'w').write(defconf)
-
-            vim.command("e! "+home + "/abaped/server.cfg")
-
-        else:
-            conn = vim.eval("g:conn")            
-            sap  = easysap.SAPInstance()
-            sap.set_config(conn)
-            code = sap.download_abap(program)
-            
-            if len(code) > 0:
-                if not os.path.exists(home + "/abaped/"+program):
-                    os.mkdir(home+"/abaped/"+program)
-                dw = home + "/abaped/"+program + "/"+ program  + ".abap" 
-                
+    conn = vim.eval("g:conn")            
+    sap  = easysap.SAPInstance()
+    sap.set_config(conn)
+    code = sap.download_abap(program)
+    
+    if len(code) > 0:
+        if not os.path.exists(home + "/"+path+"/programs/"+program):
+            os.mkdir(home+"/"+path+"/programs/"+program)
+        dw = home + "/"+path+"/programs/"+program + "/"+ program  + ".abap" 
+        
+        fo = open(dw, 'w')
+        fo.write(code)
+        fo.close()
+        
+        # look for include programs
+        code = code.split('\n')
+        includes = False
+        for line in code:
+            inc_name = ''
+            if line.upper().find('INCLUDE') >= 0:
+                words = line.split(' ')
+                next = False
+                for word in words:
+                    if next:
+                        inc_name = word.strip()
+                        inc_name = inc_name.replace('.', '')
+                        if inc_name.upper() == 'STRUCTURE':
+                            inc_name = ''
+                        break
+                    if word.upper().strip() == 'INCLUDE':
+                        next = True
+            if len(inc_name) > 0:
+                code = sap.download_abap(inc_name)
+                dw = home + "/"+path+"/programs/"+program+"/" + inc_name + ".abap"
                 fo = open(dw, 'w')
                 fo.write(code)
                 fo.close()
-                
-                # look for include programs
-                code = code.split('\n')
-                includes = False
-                for line in code:
-                    inc_name = ''
-                    if line.upper().find('INCLUDE') >= 0:
-                        words = line.split(' ')
-                        next = False
-                        for word in words:
-                            if next:
-                                inc_name = word.strip()
-                                inc_name = inc_name.replace('.', '')
-                                if inc_name.upper() == 'STRUCTURE':
-                                    inc_name = ''
-                                break
-                            if word.upper().strip() == 'INCLUDE':
-                                next = True
-                    if len(inc_name) > 0:
-                        code = sap.download_abap(inc_name)
-                        dw = home + "/abaped/"+program+"/" + inc_name + ".abap"
-                        fo = open(dw, 'w')
-                        fo.write(code)
-                        fo.close()
-                        vim.command('echom "Downloaded include '+ inc_name + '"')
-                        includes = True
-                dw = home + "/abaped/" + program + "/" + program + ".abap" 
-                vim.command("e " + dw )
-                if includes:
-                    vim.command("vsplit " + home + "/abaped/"+program )
-            else:
-                print 'Source code not found!'
+                vim.command('echom "Downloaded include '+ inc_name + '"')
+                includes = True
+        dw = home + "/"+path+"/"+"" + program + "/" + program + ".abap" 
+        vim.command("e " + dw )
+        if includes:
+            vim.command("vsplit " + home + "/"+path+"/programs/"+program )
     else:
-        print 'HOME path not found!'
+        print 'Source code not found!'
 
     
 except Exception, e:
@@ -187,7 +234,7 @@ EOF
 endfunction
 
 
-function! Abapreload()
+function! A4V_reload()
 let g:current_program = expand("%:t")
 
 python << EOF
@@ -198,7 +245,7 @@ program = vim.eval("g:current_program")
 program, extension = program.split('.')
 program = program.strip()
 
-if extension == 'abap':
+if extension.upper() == 'ABAP':
     if program[0].lower() not in 'xyz':
         print 'Standard program'
     else:
@@ -208,21 +255,20 @@ EOF
 
 if g:pre_prog 
     if exists("g:pre")
-        Abapget()
+        A4V_get()
     endif
 endif
 endfunction
 
 
 "-------------------------------------------
-" AbapRun
 " Run current buffer as ABAP program 
 "------------------------------------------
 
-function! Abaprun()
+function! A4V_run()
 let g:full_path = expand("%:p")
 
-let g:conn = Abapconn()
+let g:conn = A4V_conn()
 
 python << EOF
 import vim, easysap, os
@@ -249,12 +295,10 @@ EOF
 endfunction
 
 "-------------------------------------------
-" AbapCommit
-"
 " Upload ABAP Code to SAP Server
 "-------------------------------------------
-function! Abapcommit()
-let g:sc = Abapsyntax()
+function! A4V_commit()
+let g:sc = A4V_syntax()
 let g:cont = "K"
 
 if g:sc ==? "OK"
@@ -273,7 +317,7 @@ endif
 
 let g:current_program = expand("%:t")
 let g:full_path = expand("%:p")
-let g:conn      = Abapconn()
+let g:conn      = A4V_conn()
 python << EOF
 # -*- coding: UTF-8 -*-
 import vim, os, easysap
@@ -283,7 +327,7 @@ full_path = vim.eval("g:full_path")
 
 if program.find('.') > 0:
     program, extension = program.split('.')
-    if extension == 'abap':
+    if extension.upper() == 'ABAP':
         sap = easysap.SAPInstance()
         home = os.environ['HOME']
         conn = vim.eval("g:conn") 
@@ -303,10 +347,10 @@ EOF
 
 endfunction
 
-function! Abapsyntax()
+function! A4V_syntax()
 let g:current_program = expand("%t")
 let g:full_path = expand("%:p")
-let g:conn = Abapconn()
+let g:conn = A4V_conn()
 let g:result = ''
 python << EOF
 # -*- coding: UTF-8 -*-
@@ -317,7 +361,7 @@ full_path = vim.eval("g:full_path")
 
 if program.find('.') > 0:
     program, extension = program.split('.')
-    if extension == 'abap':
+    if extension.upper() == 'ABAP':
         if program.strip()[0].lower() not in 'xyz':
             print 'This seems a standart ABAP Code!:' + program
         else:
@@ -345,9 +389,9 @@ endfunction
 "-------------------------------------------
 " Get transport order containing an object "
 "------------------------------------------"
-function! TransportOrder()
+function! A4V_TransportOrder()
     let g:object = input('Object: ')
-    let g:conn = Abapconn()
+    let g:conn = A4V_conn()
 
 python << EOF
 import vim, easysap 
@@ -380,8 +424,7 @@ if obj != None:
            ON ( a~trkorr = b~trkorr )
            INNER JOIN e070 as c 
            ON ( c~trkorr = b~trkorr )
-           WHERE a~obj_name = '%s'
-             AND c~trfunction = 'K'.
+           WHERE a~obj_name = '%s'.
 
     LOOP AT it_to 
         INTO wa_to.
@@ -402,7 +445,7 @@ if obj != None:
 
     sap.set_config(conn)
 
-    result = sap.executeABAP(program)
+    result = sap.executeA4V_(program)
 
     total = len(result)
 
@@ -427,9 +470,9 @@ endfunction
 "--------------------------------------------"
 " Objects in transport order 
 "--------------------------------------------!
-function! TransportOrderObjects()
+function! A4V_TransportOrderObjects()
     let g:torder = input('Transport Order: ')
-    let g:conn   = Abapconn()
+    let g:conn   = A4V_conn()
 
 python << EOF 
 import vim, easysap
@@ -445,20 +488,21 @@ if torder != None:
 
     DATA:
         BEGIN OF wa_objects,
+            objext   like e071-object,
             obj_name like e071-obj_name,
         END OF wa_objects,
 
         it_objects like wa_objects occurs 0.
 
 
-    SELECT obj_name FROM e071 
+    SELECT object, obj_name FROM e071 
     INTO TABLE it_objects 
     WHERE TRKORR = '%s'
       AND OBJECT <> 'RELE'.
 
     LOOP AT it_objects 
         INTO wa_objects.
-        WRITE:/ wa_objects-obj_name.
+        WRITE:/ '[', wa_objects-object, '] - ', wa_objects-obj_name.
     ENDLOOP.
     """ % torder
 
@@ -467,7 +511,7 @@ if torder != None:
 
     sap.set_config(conn)
 
-    result = sap.executeABAP(program)
+    result = sap.executeA4V_(program)
 
     total = len(result)
 
@@ -481,3 +525,71 @@ if torder != None:
 EOF 
 
 endfunction
+
+
+"-----------------------------------------------
+" T100 Messages 
+"-----------------------------------------------
+function! A4V_T100()
+    let g:fare = input('Functional area: ')
+    let g:msgn = input('Message number: ')
+    let g:lang = input('Language: ')
+    let g:conn = A4V_conn()
+
+python << EOF 
+import vim, easysap 
+
+fare = vim.eval('g:fare')
+msgn = vim.eval('g:msgn')
+lang = vim.eval('g:lang')
+
+fare = fare.upper()
+msgn = msgn.upper()
+lang = lang.upper()
+
+
+if len(lang) == 0:
+    lang = 'E'
+
+if fare != None and msgn != None: 
+    fare = fare.upper()
+    msgn = msgn.upper()
+
+    program = """
+REPORT ZMSGS.
+
+TABLES: 
+    T100.
+
+SELECT SINGLE * 
+FROM T100 
+WHERE ARBGB = '%s'
+  AND MSGNR = '%s'
+  AND SPRSL = '%s'.
+
+  WRITE:/ T100-TEXT.
+    """ % (fare, msgn, lang)
+
+
+    sap = easysap.SAPInstance()
+    sap.set_config(vim.eval("g:conn"))
+
+    result = sap.executeABAP(program)
+
+    if len(result)> 0:
+        print result[0]
+
+EOF 
+
+endfunction
+
+"----------------------------------------
+" Function Module Pattern
+"----------------------------------------
+function! FMPattern()
+    let g:conn =  A4V_conn()
+endfunction
+
+
+
+
