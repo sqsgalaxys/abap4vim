@@ -241,7 +241,7 @@ try:
                             next = True
                 if len(inc_name) > 0:
                     code = sap.download_abap(inc_name)
-                    dw = paht + "/" + inc_name + ".abap"
+                    dw = path + "/" + inc_name + ".abap"
                     fo = open(dw, 'w')
                     fo.write(code)
                     fo.close()
@@ -316,6 +316,49 @@ else:
 EOF 
 
 endfunction
+
+"-------------------------------------------
+" Download function module minidocumentation
+"-------------------------------------------
+function! A4V_fm_info()
+let g:fname = input("Function Module Name: ")
+let g:conn  = A4V_conn()
+
+python << EOF 
+import vim, easysap 
+
+funct = vim.eval("g:fname")
+conn  = vim.eval("g:conn")
+
+if funct != None:
+    sap = easysap.SAPInstance()
+    sap.set_config(conn)
+
+    info = sap.download_fm_info(funct)
+
+    minidoc = ''
+    vim.command('vsplit')
+    vim.command('enew')
+    for key in info.keys():
+        new_key = {'I': 'Imports',
+                   'E': 'Exports',
+                   'T': 'Tables'}
+
+        vim.current.buffer.append(new_key[key] + ':')
+        vim.current.buffer.append('')
+        for param in info[key]:
+            vim.current.buffer.append('\t' + param['NAME'])
+            vim.current.buffer.append('')
+EOF 
+endfunction
+
+
+function! A4V_fm_pattern()
+    let line=getline('.')
+    echo line
+endfunction
+
+
 
 "-------------------------------------------
 " Reload current program 
@@ -414,8 +457,6 @@ full_path = vim.eval("g:full_path")
 
 fp = full_path.split('\\')
 fp = fp[::-1]
-
-print fp
 
 error = False
 if fp[2].lower() == 'function_modules':
