@@ -12,17 +12,13 @@ let g:homepath = '~'
 " Go to the main path
 " -------------------------------------------
 function! A4V_dir()
-
     let g:home = A4V_home_path()
-
 python << EOF
 # -*- coding: UTF-8 -*-
 import os, vim
 
 path = vim.eval('g:mainpath')
-
 home = vim.eval('g:home')
-
 vim.command("e "+home+"/"+path+"/")
 
 EOF
@@ -33,11 +29,8 @@ endfunction
 " Configure SAP Server
 "---------------------------------------------
 function! A4V_conf()
-
-split ~/ABAP4Vim/server.cfg
-
+    split ~/ABAP4Vim/server.cfg
 endfunction
-
 
 "------------------------------
 " Check initial installation
@@ -76,19 +69,6 @@ EOF
     return g:result
 
 endfunction
-
-"------------------------------
-" Generate default directories
-"------------------------------
-
-
-"------------------------------
-" Generate configuration file
-"------------------------------
-function! A4V_gen_cfgfile()
-
-endfunction
-
 
 "---------------------------
 " Get Home Path 
@@ -203,6 +183,7 @@ try:
     program = vim.eval("g:arg") 
 
     if program != None:
+        program = program.upper()
         path = vim.eval('g:mainpath')
         conn = vim.eval('g:conn')            
         home = vim.eval("g:home")
@@ -234,6 +215,7 @@ try:
                         if next:
                             inc_name = word.strip()
                             inc_name = inc_name.replace('.', '')
+                            inc_name = inc_name.upper()
                             if inc_name.upper() == 'STRUCTURE':
                                 inc_name = ''
                             break
@@ -484,19 +466,24 @@ if program.find('.') > 0 and not error:
         if ok:
             print 'Code uploaded successfully!'
         else:
-            print 'ERROR uploading ABAP Source code'
+            print 'ERROR uploading ABAP Source code', program
                 
 
 EOF
 
 endfunction
 
+"---------------------------
+" Check code syntax 
+" *not working properly
+"---------------------------
 function! A4V_syntax()
 let g:current_program = expand("%t")
 let g:full_path = expand("%:p")
 let g:conn = A4V_conn()
 let g:home = A4V_home_path()
 let g:result = ''
+
 python << EOF
 # -*- coding: UTF-8 -*-
 import vim, os, easysap
@@ -508,7 +495,7 @@ if program.find('.') > 0:
     program, extension = program.split('.')
     if extension.upper() == 'ABAP':
         if program.strip()[0].lower() not in 'xyz':
-            print 'This seems a standart ABAP Code!:' + program
+            print 'This seems a standard ABAP Code!:' + program
         else:
             sap = easysap.SAPInstance()
             home = vim.eval("g:home")
@@ -523,7 +510,9 @@ if program.find('.') > 0:
             if len(result) > 0:
                 if type(result) == type([]):
                     result = result[0]
-            print result
+                print result
+            else:
+                print 'ABAP4Vim Error'
             vim.command("let g:result = '"+str(result)+"'")
 
 EOF
@@ -734,7 +723,5 @@ endfunction
 function! FMPattern()
     let g:conn =  A4V_conn()
 endfunction
-
-
 
 
