@@ -6,10 +6,8 @@ ABAP for Vim
 I don't have any experience on writing Vim plugins, so if you see something
 strange, please let me know*
 
-    *hugo.delacruz[at]live[dot]com[dot]mx
-
-abap4vim is a simple Vim plugin. With this plug-in you can download ABAP code
-from your SAP Server, edit the code in Vim, and upload it again to the SAP
+`abap4vim` is a simple Vim plugin. With this plug-in you can download ABAP code
+from your SAP Server, edit ABAP code in Vim, and upload it again to the SAP
 Server. This can be helpful for editing ABAP Reports ( No modulpool ), or
 simple ABAP programs.
 
@@ -44,6 +42,5 @@ install abap4vim.
 
     cd ~/vimfiles/bundle
     git://github.com/hugo-dc/abap4vim.git
-
 
 
